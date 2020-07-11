@@ -2,11 +2,11 @@
 import numpy as np
 import cv2
 
-cap = cv2.VideoCapture('untitled.mp4')
+cap = cv2.VideoCapture('mauro_squat.mp4')
 fps = cap.get(5)
 fourcc = cv2.VideoWriter_fourcc(*'mpeg')
 resolution = (int(cap.get(3)), int(cap.get(4)))
-out = cv2.VideoWriter('output.mp4', fourcc, fps, resolution)
+out = cv2.VideoWriter('output_pyrlk.mp4', fourcc, fps, resolution)
 
 # params for ShiTomasi corner detection
 feature_params = dict( maxCorners = 100,
@@ -42,8 +42,11 @@ while(1):
     p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
 
     # Select good points
-    good_new = p1[st==1]
-    good_old = p0[st==1]
+    try:
+        good_new = p1[st==1]
+        good_old = p0[st==1]
+    except TypeError:
+        continue
 
     # draw the tracks
     for i,(new,old) in enumerate(zip(good_new,good_old)):
