@@ -1,29 +1,10 @@
 import cv2
+from typing import Generator
 import numpy as np
-
-
-def get_capture() -> cv2.VideoCapture:
-    #capture = cv2.VideoCapture('mauro_squat.mp4')
-    capture = cv2.VideoCapture(0)
-    assert capture.isOpened()
-    return capture
-
-
-def get_output(capture: cv2.VideoCapture) -> cv2.VideoWriter:
-    fps = capture.get(5)
-    fourcc = cv2.VideoWriter_fourcc(*'mpeg')
-    resolution = (int(capture.get(3)), int(capture.get(4)))
-    return cv2.VideoWriter('output_of_farneback_webcam.mp4', fourcc, fps, resolution)
-
-
-def write_output(output: cv2.VideoWriter, image):
-    return
-    output.write(image)
 
 
 def process_frame(frame):
     processed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    #cv2.imshow('Processed', processed_frame)
     return processed_frame
 
 
@@ -40,7 +21,8 @@ def init_frames(capture: cv2.VideoCapture):
 
     return frame, frame_processed, hsv_mask
 
-def get_flow(capture: cv2.VideoCapture):
+
+def generate_flow(capture: cv2.VideoCapture) -> Generator[np.ndarray, None, None]:
     frame_current, frame_curr_processed, HSV_MASK = init_frames(capture)
 
     while True:
@@ -69,61 +51,41 @@ def get_flow(capture: cv2.VideoCapture):
         magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
 
         HSV_MASK[..., 0] = angle * 180 / np.pi / 2
-        magnitude[magnitude < 5] = 0.0
-        #cv2.imshow('Magnitude', magnitude)
+        magnitude[magnitude < 4] = 0.0
         HSV_MASK[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
         final_display = cv2.cvtColor(HSV_MASK, cv2.COLOR_HSV2BGR)
-        #cv2.imshow('Final', final_display)
-        write_output(output, final_display)
+        yield final_display
 
         if cv2.waitKey(1) == 27:
             break
     capture.release()
+
+
+def get_capture(path=None) -> cv2.VideoCapture:
+    if path is None:
+        capture = cv2.VideoCapture(0)
+    else:
+        capture = cv2.VideoCapture(path)
+    assert capture.isOpened()
+    return capture
+
+
+def get_output(capture: cv2.VideoCapture) -> cv2.VideoWriter:
+    fps = capture.get(5)
+    fourcc = cv2.VideoWriter_fourcc(*'mpeg')
+    resolution = (int(capture.get(3)), int(capture.get(4)))
+    return cv2.VideoWriter('output_of_farneback_webcam.mp4', fourcc, fps, resolution)
 
 
 if __name__ == '__main__':
-    capture = get_capture()
-    output = get_output(capture)
-    frame_current, frame_curr_processed, HSV_MASK = init_frames(capture)
+    capture = get_capture(0)
+    #output = get_output(capture)
 
-    while True:
-        frame_previous = frame_current
-        frame_prev_processed = frame_curr_processed
+    for frame in generate_flow(capture):
+        cv2.imshow('Stvar', frame)
+        #output.write(frame)
 
-        status, frame_current = capture.read()
-        if not status:
-            break
-
-        frame_curr_processed = process_frame(frame_current)
-
-        flow = cv2.calcOpticalFlowFarneback(
-            prev=frame_prev_processed,
-            next=frame_curr_processed,
-            flow=None,
-            pyr_scale=0.5,
-            levels=3,
-            winsize=15,
-            iterations=3,
-            poly_n=5,
-            poly_sigma=1.2,
-            flags=0
-        )
-
-        magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-
-        HSV_MASK[..., 0] = angle * 180 / np.pi / 2
-        magnitude[magnitude < 5] = 0.0
-        #cv2.imshow('Magnitude', magnitude)
-        HSV_MASK[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
-        final_display = cv2.cvtColor(HSV_MASK, cv2.COLOR_HSV2BGR)
-        cv2.imshow('Final', final_display)
-        write_output(output, final_display)
-
-        if cv2.waitKey(1) == 27:
-            break
-
-    cv2.destroyAllWindows()
     capture.release()
-    if output is not None:
-        output.release()
+    cv2.destroyAllWindows()
+    #output.release()
 
