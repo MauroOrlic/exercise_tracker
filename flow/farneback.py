@@ -47,45 +47,11 @@ def generate_flow(capture: cv2.VideoCapture) -> Generator[np.ndarray, None, None
             poly_sigma=1.2,
             flags=0
         )
-
         magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
 
         HSV_MASK[..., 0] = angle * 180 / np.pi / 2
-        magnitude[magnitude < 4] = 0.0
+        magnitude[magnitude < 2] = 0.0
         HSV_MASK[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
-        final_display = cv2.cvtColor(HSV_MASK, cv2.COLOR_HSV2BGR)
-        yield final_display
+        frame_output = cv2.cvtColor(HSV_MASK, cv2.COLOR_HSV2BGR)
 
-        if cv2.waitKey(1) == 27:
-            break
-    capture.release()
-
-
-def get_capture(path=None) -> cv2.VideoCapture:
-    if path is None:
-        capture = cv2.VideoCapture(0)
-    else:
-        capture = cv2.VideoCapture(path)
-    assert capture.isOpened()
-    return capture
-
-
-def get_output(capture: cv2.VideoCapture) -> cv2.VideoWriter:
-    fps = capture.get(5)
-    fourcc = cv2.VideoWriter_fourcc(*'mpeg')
-    resolution = (int(capture.get(3)), int(capture.get(4)))
-    return cv2.VideoWriter('output_of_farneback_webcam.mp4', fourcc, fps, resolution)
-
-
-if __name__ == '__main__':
-    capture = get_capture(0)
-    #output = get_output(capture)
-
-    for frame in generate_flow(capture):
-        cv2.imshow('Stvar', frame)
-        #output.write(frame)
-
-    capture.release()
-    cv2.destroyAllWindows()
-    #output.release()
-
+        yield frame_output
