@@ -52,7 +52,10 @@ def generate_flow(capture: cv2.VideoCapture) -> Generator[np.ndarray, None, None
         magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
 
         HSV_MASK[..., 0] = angle * 180 / np.pi / 2
+
+        # Removes very small vectors (movements) from detected flow
         magnitude[magnitude < MAGNITUDE_THRESHOLD] = 0.0
+
         HSV_MASK[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
         frame_output = cv2.cvtColor(HSV_MASK, cv2.COLOR_HSV2BGR)
 
