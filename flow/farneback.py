@@ -2,6 +2,8 @@ import cv2
 from typing import Generator
 import numpy as np
 
+MAGNITUDE_THRESHOLD = 2
+
 
 def process_frame(frame):
     processed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -50,7 +52,7 @@ def generate_flow(capture: cv2.VideoCapture) -> Generator[np.ndarray, None, None
         magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
 
         HSV_MASK[..., 0] = angle * 180 / np.pi / 2
-        magnitude[magnitude < 2] = 0.0
+        magnitude[magnitude < MAGNITUDE_THRESHOLD] = 0.0
         HSV_MASK[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
         frame_output = cv2.cvtColor(HSV_MASK, cv2.COLOR_HSV2BGR)
 

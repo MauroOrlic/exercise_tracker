@@ -9,6 +9,7 @@ verify_ssl = true
 pytube3 = "*"
 opencv-python = "*"
 opencv-contrib-python = "*"
+nptyping = "*"
 
 [requires]
 python_version = "3.8"
