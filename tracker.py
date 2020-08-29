@@ -1,6 +1,9 @@
 from flow.farneback import generate_flow
 from flow.rep_counter import RepCounter
+from flow.flow_visualisation import Visualiser
 import cv2
+
+MAGNITUDE_THRESHOLD = 2
 
 
 def get_output(capture: cv2.VideoCapture) -> cv2.VideoWriter:
@@ -19,8 +22,11 @@ cv2.namedWindow('Tracker', cv2.WINDOW_AUTOSIZE)
 
 # capture.get(x) for x=3 and x=4 return video width and height, respectively
 rep_counter = RepCounter(int(capture.get(3)), int(capture.get(4)))
+visualiser = Visualiser(int(capture.get(3)), int(capture.get(4)))
 
-for image in generate_flow(capture):
+for magnitude, angle in generate_flow(capture):
+    magnitude[magnitude < MAGNITUDE_THRESHOLD] = 0.0
+    image = visualiser.get_frame(magnitude, angle)
     rep_count = rep_counter.get_rep_count(image)
     # Adds text with rep count to image
     cv2.putText(image, f"Rep count: {int(rep_count)}", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, 255)
