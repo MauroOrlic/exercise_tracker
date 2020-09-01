@@ -27,7 +27,7 @@ visualiser = Visualiser(int(capture.get(3)), int(capture.get(4)))
 for magnitude, angle in generate_flow(capture):
     magnitude[magnitude < MAGNITUDE_THRESHOLD] = 0.0
     image = visualiser.get_frame(magnitude, angle)
-    rep_count = rep_counter.get_rep_count(image)
+    rep_count = rep_counter.get_rep_count(magnitude, angle)
     # Adds text with rep count to image
     cv2.putText(image, f"Rep count: {int(rep_count)}", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, 255)
 
