@@ -1,9 +1,10 @@
-import cv2
 from typing import Generator
+
 import numpy as np
+from cv2 import VideoCapture, cvtColor, COLOR_BGR2GRAY, calcOpticalFlowFarneback, cartToPolar
 
 
-def init_frame(capture: cv2.VideoCapture):
+def init_frame(capture: VideoCapture):
     status, frame_raw = capture.read()
 
     if not status:
@@ -12,8 +13,8 @@ def init_frame(capture: cv2.VideoCapture):
     return frame_raw
 
 
-def generate_flow_from_capture(capture: cv2.VideoCapture, magnitude_threshold=2) -> Generator[np.ndarray, None, None]:
-    frame_current = cv2.cvtColor(init_frame(capture), cv2.COLOR_BGR2GRAY)
+def generate_flow_from_capture(capture: VideoCapture, magnitude_threshold=2) -> Generator[np.ndarray, None, None]:
+    frame_current = cvtColor(init_frame(capture), COLOR_BGR2GRAY)
 
     while True:
         frame_previous = frame_current
@@ -21,9 +22,9 @@ def generate_flow_from_capture(capture: cv2.VideoCapture, magnitude_threshold=2)
         status, frame_current = capture.read()
         if not status:
             break
-        frame_current = cv2.cvtColor(frame_current, cv2.COLOR_BGR2GRAY)
+        frame_current = cvtColor(frame_current, COLOR_BGR2GRAY)
 
-        flow = cv2.calcOpticalFlowFarneback(
+        flow = calcOpticalFlowFarneback(
             prev=frame_previous,
             next=frame_current,
             flow=None,
@@ -35,7 +36,7 @@ def generate_flow_from_capture(capture: cv2.VideoCapture, magnitude_threshold=2)
             poly_sigma=1.2,
             flags=0
         )
-        magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+        magnitude, angle = cartToPolar(flow[..., 0], flow[..., 1])
 
         # Ignore very small movements (magnitude is in range 0.0 - 100.0)
         magnitude[magnitude < magnitude_threshold] = 0.0

@@ -1,5 +1,9 @@
 import numpy as np
-import cv2
+from cv2 import (
+    CAP_PROP_FRAME_WIDTH,
+    CAP_PROP_FRAME_HEIGHT,
+    VideoCapture
+)
 
 
 class RepCounter:
@@ -85,10 +89,10 @@ class RepCounter:
         self._dot_product_detection_threshold = v
 
     @classmethod
-    def from_video_capture(cls, capture: cv2.VideoCapture):
+    def from_video_capture(cls, capture: VideoCapture):
         return cls(
-            int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
-            int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            int(capture.get(CAP_PROP_FRAME_WIDTH)),
+            int(capture.get(CAP_PROP_FRAME_HEIGHT))
         )
 
     @property

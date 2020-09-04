@@ -1,12 +1,15 @@
+from cv2 import VideoCapture, waitKey, destroyAllWindows
+
 from flow_farneback import generate_flow_from_capture
-from rep_counter import RepCounter
 from output_utils import DisplayImageProcessor, CustomVideoWriter
-import cv2
+from rep_counter import RepCounter
 
 
 def main():
+    print("Press 'Esc' to exit, press 'r' to reset rep count to zero.")
+
     # Captures video from webcam with device index 0
-    capture = cv2.VideoCapture(0)
+    capture = VideoCapture(0)
 
     rep_counter = RepCounter.from_video_capture(capture)
     image_processor = DisplayImageProcessor.from_video_capture(capture)
@@ -18,7 +21,7 @@ def main():
         image_processor.display_frame(magnitude, angle, rep_counter.rep_count)
         output.write(image_processor.current_frame)
 
-        keypress = cv2.waitKey(1)
+        keypress = waitKey(1)
         # Press Esc to exit program
         if keypress == 27:
             break
@@ -27,7 +30,7 @@ def main():
             rep_counter.reset_rep_count()
 
     capture.release()
-    cv2.destroyAllWindows()
+    destroyAllWindows()
     output.release()
 
 
