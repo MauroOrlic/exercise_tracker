@@ -1,7 +1,11 @@
 import numpy as np
+from flow_pose import LandmarkFlow, Landmark
+from typing import Tuple
+from statistics import mean
+from collections import deque
 
 
-class RepCounter:
+class RepCounterOpticalFlow:
 
     VECTOR_COMPONENT_COUNT = 2
 
@@ -73,7 +77,7 @@ class RepCounter:
 
     @property
     def cached_frames_to_sample(self):
-        return self._cached_images_to_sample
+        return self._cached_frames_to_sample
 
     @cached_frames_to_sample.setter
     def cached_frames_to_sample(self, v: int):
@@ -82,7 +86,7 @@ class RepCounter:
         if not 1 <= v <= self.frames_to_cache // 2:
             raise ValueError(f"expected value between 1 and {self.frames_to_cache // 2} "
                              f"(half of 'frames_to_cache' rounded down), not {v}")
-        self._cached_images_to_sample = v
+        self._cached_frames_to_sample = v
 
     @property
     def dot_product_detection_threshold(self):
@@ -148,3 +152,88 @@ class RepCounter:
             self._last_increment_frames_ago = 0
         else:
             self._last_increment_frames_ago += 1
+
+
+class RepCounterPoseFlow:
+    def __init__(
+            self,
+            frames_to_cache=13,
+            cached_frames_to_sample=5,
+            dot_product_detection_threshold=0.0
+    ):
+        self.frames_to_cache = frames_to_cache
+        self.cached_frames_to_sample = cached_frames_to_sample
+        self.dot_product_detection_threshold = dot_product_detection_threshold
+
+        self._rep_count = 0
+
+        self._cached_landmarks = list()
+
+        self._last_increment_frames_ago = 0
+
+    @property
+    def frames_to_cache(self):
+        return self._images_to_cache
+
+    @frames_to_cache.setter
+    def frames_to_cache(self, v: int):
+        if not isinstance(v, int):
+            raise TypeError(f"expected {int}, not {type(v)}")
+        if not 2 <= v:
+            raise ValueError(f"expected value greater or equal to 2, not {v}")
+        self._images_to_cache = v
+
+    @property
+    def cached_frames_to_sample(self):
+        return self._cached_images_to_sample
+
+    @cached_frames_to_sample.setter
+    def cached_frames_to_sample(self, v: int):
+        if not isinstance(v, int):
+            raise TypeError(f"expected {int}, not {type(v)}")
+        if not 1 <= v <= self.frames_to_cache // 2:
+            raise ValueError(f"expected value between 1 and {self.frames_to_cache // 2} "
+                             f"(half of 'frames_to_cache' rounded down), not {v}")
+        self._cached_images_to_sample = v
+
+    @property
+    def dot_product_detection_threshold(self):
+        return self._dot_product_detection_threshold
+
+    @dot_product_detection_threshold.setter
+    def dot_product_detection_threshold(self, v: float):
+        if not isinstance(v, (int, float)):
+            raise TypeError(f"expected {float} or {int}, not {type(v)}")
+        self._dot_product_detection_threshold = v
+
+    @property
+    def rep_count(self) -> int:
+        return np.floor(self._rep_count)
+
+    def reset_rep_count(self):
+        self._rep_count = 0
+
+    def update_rep_count(self, landmarks: Tuple[LandmarkFlow]):
+        if landmarks is None:
+            return
+
+        if len(self._cached_landmarks) == self.frames_to_cache + 1:
+            self._cached_landmarks = self._cached_landmarks[:-1]
+
+        self._calculate_rep_count()
+
+    def _calculate_rep_count(self):
+        # Prevents detecting the same change of movement multiple frames in a row
+        if self._last_increment_frames_ago >= self.frames_to_cache - self.cached_frames_to_sample:
+            previous = LandmarkFlow.avg_flow(self._cached_landmarks[:self.cached_frames_to_sample])
+            current = LandmarkFlow.avg_flow(self._cached_landmarks[-self.cached_frames_to_sample:])
+
+            dot_product = np.dot(previous, current)
+            # If the dot product is negative that means the subject suddenly changed the
+            # direction of movement (we interpret this as doing half of a rep)
+            if dot_product < self.dot_product_detection_threshold:
+                self._rep_count += 0.5
+            self._last_increment_frames_ago = 0
+        else:
+            self._last_increment_frames_ago += 1
+        pass

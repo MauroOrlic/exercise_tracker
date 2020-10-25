@@ -21,9 +21,10 @@ def init_frame(capture: VideoCapture):
 
 def generate_flow_from_capture(capture: VideoCapture, magnitude_threshold=2) -> Generator[np.ndarray, None, None]:
     # Get first frame and convert it to grayscale
+
     frame_current = cvtColor(init_frame(capture), COLOR_BGR2GRAY)
 
-    while True:
+    while capture.isOpened():
         frame_previous = frame_current
 
         # Get new frame and check if capture is working (detects last frame in a video file).
