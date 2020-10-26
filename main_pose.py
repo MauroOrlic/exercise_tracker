@@ -12,6 +12,7 @@ from rep_counter import RepCounterPoseFlow
 
 
 # Captures video from webcam with device index 0
+#capture = VideoCapture('mauro_squat.mp4')
 capture = VideoCapture(0)
 # Tinker with parameters depending on video quality and FPS
 rep_counter = RepCounterPoseFlow(
@@ -25,7 +26,7 @@ output = CustomVideoWriter.from_video_capture(capture, file='output.mp4')
 print("Press 'Esc' to exit, press 'r' to reset rep count to zero.")
 for frame, landmarks, landmarks_flow in PoseFlow.generate_flow_from_capture(capture):
 
-    rep_counter.update_rep_count(landmarks_flow)
+    #rep_counter.update_rep_count(landmarks_flow)
     image_processor.display_frame(rep_count=rep_counter.rep_count, frame=frame, landmarks=landmarks)
     output.write(image_processor.current_frame)
 

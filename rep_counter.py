@@ -155,6 +155,8 @@ class RepCounterOpticalFlow:
 
 
 class RepCounterPoseFlow:
+    VECTOR_COUNT = 32
+    VECTOR_COMPONENT_COUNT = 3
     def __init__(
             self,
             frames_to_cache=13,
@@ -167,7 +169,7 @@ class RepCounterPoseFlow:
 
         self._rep_count = 0
 
-        self._cached_landmarks = list()
+        self._cached_landmarks: np.ndarray = np.empty(shape=(0, ))
 
         self._last_increment_frames_ago = 0
 
@@ -213,19 +215,24 @@ class RepCounterPoseFlow:
     def reset_rep_count(self):
         self._rep_count = 0
 
-    def update_rep_count(self, landmarks: Tuple[LandmarkFlow]):
-        if landmarks is None:
+    def update_rep_count(self, landmarks_flow: Tuple[LandmarkFlow]):
+        if landmarks_flow is None:
             return
 
-        if len(self._cached_landmarks) == self.frames_to_cache + 1:
-            self._cached_landmarks = self._cached_landmarks[:-1]
+        self._cached_landmarks.insert(0, landmarks_flow)
 
-        self._calculate_rep_count()
+        if len(self._cached_landmarks) == self.frames_to_cache + 1:
+            self._cached_landmarks.pop()
+
+            self._calculate_rep_count()
 
     def _calculate_rep_count(self):
         # Prevents detecting the same change of movement multiple frames in a row
         if self._last_increment_frames_ago >= self.frames_to_cache - self.cached_frames_to_sample:
-            previous = LandmarkFlow.avg_flow(self._cached_landmarks[:self.cached_frames_to_sample])
+            previous = LandmarkFlow.avg_flow(landmark_flow for landmark_flow in self._cached_landmarks[:self.cached_frames_to_sample])
+            previous = [
+
+            ]
             current = LandmarkFlow.avg_flow(self._cached_landmarks[-self.cached_frames_to_sample:])
 
             dot_product = np.dot(previous, current)

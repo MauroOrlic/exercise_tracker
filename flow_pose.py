@@ -2,7 +2,7 @@ from mediapipe.examples.python.upper_body_pose_tracker import UpperBodyPoseTrack
 from cv2 import VideoCapture
 from dataclasses import dataclass
 from statistics import mean
-from typing import Tuple, Generator, Any, Union, Collection, Optional
+from typing import Tuple, Generator, Any, Union, Iterable, Optional
 from nptyping import NDArray
 import numpy as np
 
@@ -45,7 +45,7 @@ class LandmarkFlow:
         )
 
     @classmethod
-    def avg_flow(cls, landmark_flows: Collection['LandmarkFlow']):
+    def avg_flow(cls, landmark_flows: Iterable['LandmarkFlow']):
         return LandmarkFlow(
             mean(lf.x for lf in landmark_flows),
             mean(lf.y for lf in landmark_flows),
@@ -90,13 +90,12 @@ class PoseFlow:
                 break
             landmarks_current, _ = tracker.run(frame)
 
-            flow = None
-            if landmarks_current is not None and landmarks_previous is not None:
+            if landmarks_current is None or landmarks_previous is None:
+                yield frame, None, None
+            else:
                 landmarks_current = Landmark.from_mediapipe_landmarks(landmarks_current)
                 flow = cls._calculate_flow(landmarks_previous, landmarks_current)
-            else:
-                landmarks_current = None
-            yield frame, landmarks_current, flow
+                yield frame, landmarks_current, flow
 
     @classmethod
     def _calculate_flow(
