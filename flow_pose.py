@@ -53,6 +53,9 @@ class LandmarkFlow:
             mean(lf.visibility for lf in landmark_flows),
         )
 
+    def as_np_vector(self):
+        return np.array([self.x, self.y, self.z])
+
 
 class PoseFlow:
     def __init__(

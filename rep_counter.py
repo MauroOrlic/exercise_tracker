@@ -3,6 +3,7 @@ from flow_pose import LandmarkFlow, Landmark
 from typing import Tuple
 from statistics import mean
 from collections import deque
+from typing import Tuple, List
 
 
 class RepCounterOpticalFlow:
@@ -155,8 +156,9 @@ class RepCounterOpticalFlow:
 
 
 class RepCounterPoseFlow:
-    VECTOR_COUNT = 32
-    VECTOR_COMPONENT_COUNT = 3
+    MARKERS_PER_FRAME = 31
+    MARKER_VECTOR_COMPONENT_COUNT = 3
+
     def __init__(
             self,
             frames_to_cache=13,
@@ -169,7 +171,7 @@ class RepCounterPoseFlow:
 
         self._rep_count = 0
 
-        self._cached_landmarks: np.ndarray = np.empty(shape=(0, ))
+        self._cached_frames_landmarks: List[Tuple[LandmarkFlow, ...]] = list()
 
         self._last_increment_frames_ago = 0
 
@@ -218,27 +220,50 @@ class RepCounterPoseFlow:
     def update_rep_count(self, landmarks_flow: Tuple[LandmarkFlow]):
         if landmarks_flow is None:
             return
+        print('ALIVE')
 
-        self._cached_landmarks.insert(0, landmarks_flow)
+        self._cached_frames_landmarks.insert(0, landmarks_flow)
 
-        if len(self._cached_landmarks) == self.frames_to_cache + 1:
-            self._cached_landmarks.pop()
+        if len(self._cached_frames_landmarks) == self.frames_to_cache + 1:
+            self._cached_frames_landmarks.pop()
 
             self._calculate_rep_count()
 
     def _calculate_rep_count(self):
         # Prevents detecting the same change of movement multiple frames in a row
         if self._last_increment_frames_ago >= self.frames_to_cache - self.cached_frames_to_sample:
-            previous = LandmarkFlow.avg_flow(landmark_flow for landmark_flow in self._cached_landmarks[:self.cached_frames_to_sample])
-            previous = [
 
-            ]
-            current = LandmarkFlow.avg_flow(self._cached_landmarks[-self.cached_frames_to_sample:])
+            previous = self._cached_frames_landmarks[:self.cached_frames_to_sample]
+            previous_avg_frame = tuple(LandmarkFlow(0, 0, 0, 0) for i in range(self.MARKERS_PER_FRAME))
+            previous_frame_count = len(previous)
 
-            dot_product = np.dot(previous, current)
-            # If the dot product is negative that means the subject suddenly changed the
-            # direction of movement (we interpret this as doing half of a rep)
-            if dot_product < self.dot_product_detection_threshold:
+            for frame_landmarks_flow in previous:
+                for i in range(previous_frame_count):
+                    previous_avg_frame[i].x += frame_landmarks_flow[i].x / previous_frame_count
+                    previous_avg_frame[i].y += frame_landmarks_flow[i].y / previous_frame_count
+                    previous_avg_frame[i].z += frame_landmarks_flow[i].z / previous_frame_count
+                    previous_avg_frame[i].visibility += frame_landmarks_flow[i].visibility / previous_frame_count
+
+            current = self._cached_frames_landmarks[-self.cached_frames_to_sample:]
+            current_avg_frame = [LandmarkFlow(0, 0, 0, 0) for i in range(self.MARKERS_PER_FRAME)]
+            current_frame_count = len(current)
+
+            for frame_landmarks_flow in current:
+                for i in range(previous_frame_count):
+                    current_avg_frame[i].x += frame_landmarks_flow[i].x / current_frame_count
+                    current_avg_frame[i].y += frame_landmarks_flow[i].y / current_frame_count
+                    current_avg_frame[i].z += frame_landmarks_flow[i].z / current_frame_count
+                    current_avg_frame[i].visibility += frame_landmarks_flow[i].visibility / current_frame_count
+
+            frame_marker_dot_products = [
+                np.dot(
+                    previous_avg_frame[i].as_np_vector(),
+                    current_avg_frame[i].as_np_vector()
+                )
+                for i in range(self.MARKERS_PER_FRAME)]
+            print(sum(frame_marker_dot_products))
+
+            if sum(frame_marker_dot_products) < self.dot_product_detection_threshold:
                 self._rep_count += 0.5
             self._last_increment_frames_ago = 0
         else:
