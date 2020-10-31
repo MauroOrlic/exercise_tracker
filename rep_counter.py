@@ -125,8 +125,12 @@ class RepCounterOpticalFlow:
             return
 
         # Calculates average vector for the frame and inserts it to the beginning of the self._cache_avg_vectors cache
+        avg_vector = self.get_avg_vector(magnitude, angle)
+        if np.isnan(avg_vector[0]):
+            print(magnitude, angle)
+            print(avg_vector)
         self._cache_avg_vectors = np.insert(self._cache_avg_vectors, 0,
-                                            self.get_avg_vector(magnitude, angle),
+                                            avg_vector,
                                             axis=0)
 
         # This part of code doesn't execute until there are self.frames_to_cache items cached

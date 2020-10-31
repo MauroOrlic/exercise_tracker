@@ -11,7 +11,7 @@ max_z = 0
 min_visibility = maxsize
 max_visibility = 0
 
-cap = cv2.VideoCapture('../mauro_squat.mp4')
+cap = cv2.VideoCapture('../mauro_squat_phone.mp4')
 #output = CustomVideoWriter.from_video_capture(cap)
 print(
     'Press Esc within the output image window to stop the run, or let it '

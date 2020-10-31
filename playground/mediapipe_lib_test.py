@@ -2,7 +2,7 @@ from flow_pose import PoseFlow
 from cv2 import VideoCapture, imshow, waitKey
 from mediapipe.examples.python.upper_body_pose_tracker import UpperBodyPoseTracker
 
-#cap = VideoCapture('../mauro_squat.mp4')
+#cap = VideoCapture('../mauro_squat_phone.mp4')
 cap = VideoCapture(0)
 
 flow_reader = PoseFlow()

@@ -51,5 +51,6 @@ def generate_flow_from_capture(capture: VideoCapture, magnitude_threshold=2) -> 
 
         # Ignores very small movements by setting magnitude to 0 (magnitude is in range 0.0 - 100.0)
         magnitude[magnitude < magnitude_threshold] = 0.0
+        magnitude[magnitude > 100.0] = 100.0
 
         yield magnitude, angle
