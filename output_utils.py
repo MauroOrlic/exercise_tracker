@@ -16,6 +16,7 @@ class DisplayImageProcessor:
     def __init__(self, width: int, height: int, window_name: str = 'Excercise Tracker'):
         self._width = width
         self._height = height
+        print(f"({self._width}x{self._height})")
         self._hsv_mask = np.zeros((self._height, self._width, self.COLOR_CHANNEL_COUNT), dtype=np.uint8)
         self._hsv_mask[..., 1] = 255
         self._window_name = window_name
@@ -34,6 +35,7 @@ class DisplayImageProcessor:
 
     def display_frame(
             self,
+            *,
             rep_count: int,
             magnitude: np.ndarray = None,
             angle: np.ndarray = None,
@@ -70,7 +72,13 @@ class DisplayImageProcessor:
                     self._height,
                     int(landmark.y * self._height)
                 ))
-                frame = circle(frame, center=(x, y), radius=2, color=(0, 255, 0), thickness=3)
+
+                if not (0 <= landmark.x <= 1) or \
+                        not (0 <= landmark.y <= 1):
+                    marker_color = (0, 0, 255)
+                else:
+                    marker_color = (0, 255, 0)
+                frame = circle(frame, center=(x, y), radius=2, color=marker_color, thickness=3)
 
         frame = putText(
             frame,

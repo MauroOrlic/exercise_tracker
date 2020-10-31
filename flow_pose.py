@@ -44,17 +44,8 @@ class LandmarkFlow:
             mean((postition_current.visibility, position_previous.visibility))
         )
 
-    @classmethod
-    def avg_flow(cls, landmark_flows: Iterable['LandmarkFlow']):
-        return LandmarkFlow(
-            mean(lf.x for lf in landmark_flows),
-            mean(lf.y for lf in landmark_flows),
-            mean(lf.z for lf in landmark_flows),
-            mean(lf.visibility for lf in landmark_flows),
-        )
-
     def as_np_vector(self):
-        return np.array([self.x, self.y, self.z])
+        return np.array([self.x, self.y])
 
 
 class PoseFlow:
@@ -74,29 +65,26 @@ class PoseFlow:
             cls,
             capture: VideoCapture,
     ) -> Generator[
-            Tuple[NDArray, Optional[Landmark], Optional[Tuple[LandmarkFlow, ...]]
-        ], Any, Any]:
+        Tuple[NDArray, Optional[Landmark], Optional[Tuple[LandmarkFlow, ...]]]
+        , Any, Any]:
         tracker = UpperBodyPoseTracker()
 
-        status, frame = capture.read()
-        landmarks_current, _ = tracker.run(frame)
-        if landmarks_current is not None:
-            landmarks_current = Landmark.from_mediapipe_landmarks(landmarks_current)
-
-        if not status:
-            raise IOError('Failed to read first frame from capture.')
+        landmarks_previous = None
+        landmarks_current = None
 
         while capture.isOpened():
             landmarks_previous = landmarks_current
             status, frame = capture.read()
             if not status:
+                print(f"Capture status returned: {status}")
                 break
             landmarks_current, _ = tracker.run(frame)
+            if landmarks_current is not None:
+                landmarks_current = Landmark.from_mediapipe_landmarks(landmarks_current)
 
             if landmarks_current is None or landmarks_previous is None:
                 yield frame, None, None
             else:
-                landmarks_current = Landmark.from_mediapipe_landmarks(landmarks_current)
                 flow = cls._calculate_flow(landmarks_previous, landmarks_current)
                 yield frame, landmarks_current, flow
 

@@ -150,7 +150,7 @@ class RepCounterOpticalFlow:
             # direction of movement (we interpret this as doing half of a rep)
             if dot_product < self.dot_product_detection_threshold:
                 self._rep_count += 0.5
-            self._last_increment_frames_ago = 0
+                self._last_increment_frames_ago = 0
         else:
             self._last_increment_frames_ago += 1
 
@@ -161,9 +161,10 @@ class RepCounterPoseFlow:
 
     def __init__(
             self,
+            min_movement_amplitude_per_frame=0.65,
             frames_to_cache=13,
             cached_frames_to_sample=5,
-            dot_product_detection_threshold=0.0
+            dot_product_detection_threshold=-0.25
     ):
         self.frames_to_cache = frames_to_cache
         self.cached_frames_to_sample = cached_frames_to_sample
@@ -217,10 +218,21 @@ class RepCounterPoseFlow:
     def reset_rep_count(self):
         self._rep_count = 0
 
+    def _frame_avg_flow_magnitude(self, frame_flow: Tuple[LandmarkFlow]) -> float:
+        avg_landmark = LandmarkFlow(0, 0, 0, 0)
+        for landmark_flow in frame_flow:
+            avg_landmark.x += landmark_flow.x / self.MARKERS_PER_FRAME
+            avg_landmark.y += landmark_flow.y / self.MARKERS_PER_FRAME
+            avg_landmark.z += landmark_flow.z / self.MARKERS_PER_FRAME
+            avg_landmark.visibility += landmark_flow.visibility / self.MARKERS_PER_FRAME
+        avglandmark_vector = avg_landmark.as_np_vector()
+        return np.sqrt(avglandmark_vector.dot(avglandmark_vector))
+
     def update_rep_count(self, landmarks_flow: Tuple[LandmarkFlow]):
-        if landmarks_flow is None:
+        if landmarks_flow is None or self._frame_avg_flow_magnitude(landmarks_flow) < 0.5:
             return
-        print('ALIVE')
+
+        print(self._frame_avg_flow_magnitude(landmarks_flow))
 
         self._cached_frames_landmarks.insert(0, landmarks_flow)
 
@@ -261,11 +273,9 @@ class RepCounterPoseFlow:
                     current_avg_frame[i].as_np_vector()
                 )
                 for i in range(self.MARKERS_PER_FRAME)]
-            print(sum(frame_marker_dot_products))
 
             if sum(frame_marker_dot_products) < self.dot_product_detection_threshold:
                 self._rep_count += 0.5
-            self._last_increment_frames_ago = 0
+                self._last_increment_frames_ago = 0
         else:
             self._last_increment_frames_ago += 1
-        pass
