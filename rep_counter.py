@@ -1,7 +1,12 @@
 import numpy as np
+from flow_pose import LandmarkFlow, Landmark
+from typing import Tuple
+from statistics import mean
+from collections import deque
+from typing import Tuple, List
 
 
-class RepCounter:
+class RepCounterOpticalFlow:
 
     VECTOR_COMPONENT_COUNT = 2
 
@@ -73,7 +78,7 @@ class RepCounter:
 
     @property
     def cached_frames_to_sample(self):
-        return self._cached_images_to_sample
+        return self._cached_frames_to_sample
 
     @cached_frames_to_sample.setter
     def cached_frames_to_sample(self, v: int):
@@ -82,7 +87,7 @@ class RepCounter:
         if not 1 <= v <= self.frames_to_cache // 2:
             raise ValueError(f"expected value between 1 and {self.frames_to_cache // 2} "
                              f"(half of 'frames_to_cache' rounded down), not {v}")
-        self._cached_images_to_sample = v
+        self._cached_frames_to_sample = v
 
     @property
     def dot_product_detection_threshold(self):
@@ -120,8 +125,12 @@ class RepCounter:
             return
 
         # Calculates average vector for the frame and inserts it to the beginning of the self._cache_avg_vectors cache
+        avg_vector = self.get_avg_vector(magnitude, angle)
+        if np.isnan(avg_vector[0]):
+            print(magnitude, angle)
+            print(avg_vector)
         self._cache_avg_vectors = np.insert(self._cache_avg_vectors, 0,
-                                            self.get_avg_vector(magnitude, angle),
+                                            avg_vector,
                                             axis=0)
 
         # This part of code doesn't execute until there are self.frames_to_cache items cached
@@ -145,6 +154,132 @@ class RepCounter:
             # direction of movement (we interpret this as doing half of a rep)
             if dot_product < self.dot_product_detection_threshold:
                 self._rep_count += 0.5
-            self._last_increment_frames_ago = 0
+                self._last_increment_frames_ago = 0
+        else:
+            self._last_increment_frames_ago += 1
+
+
+class RepCounterPoseFlow:
+    MARKERS_PER_FRAME = 31
+    MARKER_VECTOR_COMPONENT_COUNT = 3
+
+    def __init__(
+            self,
+            min_movement_amplitude_per_frame=0.65,
+            frames_to_cache=13,
+            cached_frames_to_sample=5,
+            dot_product_detection_threshold=-0.25
+    ):
+        self.frames_to_cache = frames_to_cache
+        self.cached_frames_to_sample = cached_frames_to_sample
+        self.dot_product_detection_threshold = dot_product_detection_threshold
+
+        self._rep_count = 0
+
+        self._cached_frames_landmarks: List[Tuple[LandmarkFlow, ...]] = list()
+
+        self._last_increment_frames_ago = 0
+
+    @property
+    def frames_to_cache(self):
+        return self._images_to_cache
+
+    @frames_to_cache.setter
+    def frames_to_cache(self, v: int):
+        if not isinstance(v, int):
+            raise TypeError(f"expected {int}, not {type(v)}")
+        if not 2 <= v:
+            raise ValueError(f"expected value greater or equal to 2, not {v}")
+        self._images_to_cache = v
+
+    @property
+    def cached_frames_to_sample(self):
+        return self._cached_images_to_sample
+
+    @cached_frames_to_sample.setter
+    def cached_frames_to_sample(self, v: int):
+        if not isinstance(v, int):
+            raise TypeError(f"expected {int}, not {type(v)}")
+        if not 1 <= v <= self.frames_to_cache // 2:
+            raise ValueError(f"expected value between 1 and {self.frames_to_cache // 2} "
+                             f"(half of 'frames_to_cache' rounded down), not {v}")
+        self._cached_images_to_sample = v
+
+    @property
+    def dot_product_detection_threshold(self):
+        return self._dot_product_detection_threshold
+
+    @dot_product_detection_threshold.setter
+    def dot_product_detection_threshold(self, v: float):
+        if not isinstance(v, (int, float)):
+            raise TypeError(f"expected {float} or {int}, not {type(v)}")
+        self._dot_product_detection_threshold = v
+
+    @property
+    def rep_count(self) -> int:
+        return np.floor(self._rep_count)
+
+    def reset_rep_count(self):
+        self._rep_count = 0
+
+    def _frame_avg_flow_magnitude(self, frame_flow: Tuple[LandmarkFlow]) -> float:
+        avg_landmark = LandmarkFlow(0, 0, 0, 0)
+        for landmark_flow in frame_flow:
+            avg_landmark.x += landmark_flow.x / self.MARKERS_PER_FRAME
+            avg_landmark.y += landmark_flow.y / self.MARKERS_PER_FRAME
+            avg_landmark.z += landmark_flow.z / self.MARKERS_PER_FRAME
+            avg_landmark.visibility += landmark_flow.visibility / self.MARKERS_PER_FRAME
+        avglandmark_vector = avg_landmark.as_np_vector()
+        return np.sqrt(avglandmark_vector.dot(avglandmark_vector))
+
+    def update_rep_count(self, landmarks_flow: Tuple[LandmarkFlow]):
+        if landmarks_flow is None or self._frame_avg_flow_magnitude(landmarks_flow) < 0.5:
+            return
+
+        print(self._frame_avg_flow_magnitude(landmarks_flow))
+
+        self._cached_frames_landmarks.insert(0, landmarks_flow)
+
+        if len(self._cached_frames_landmarks) == self.frames_to_cache + 1:
+            self._cached_frames_landmarks.pop()
+
+            self._calculate_rep_count()
+
+    def _calculate_rep_count(self):
+        # Prevents detecting the same change of movement multiple frames in a row
+        if self._last_increment_frames_ago >= self.frames_to_cache - self.cached_frames_to_sample:
+
+            previous = self._cached_frames_landmarks[:self.cached_frames_to_sample]
+            previous_avg_frame = tuple(LandmarkFlow(0, 0, 0, 0) for i in range(self.MARKERS_PER_FRAME))
+            previous_frame_count = len(previous)
+
+            for frame_landmarks_flow in previous:
+                for i in range(previous_frame_count):
+                    previous_avg_frame[i].x += frame_landmarks_flow[i].x / previous_frame_count
+                    previous_avg_frame[i].y += frame_landmarks_flow[i].y / previous_frame_count
+                    previous_avg_frame[i].z += frame_landmarks_flow[i].z / previous_frame_count
+                    previous_avg_frame[i].visibility += frame_landmarks_flow[i].visibility / previous_frame_count
+
+            current = self._cached_frames_landmarks[-self.cached_frames_to_sample:]
+            current_avg_frame = [LandmarkFlow(0, 0, 0, 0) for i in range(self.MARKERS_PER_FRAME)]
+            current_frame_count = len(current)
+
+            for frame_landmarks_flow in current:
+                for i in range(previous_frame_count):
+                    current_avg_frame[i].x += frame_landmarks_flow[i].x / current_frame_count
+                    current_avg_frame[i].y += frame_landmarks_flow[i].y / current_frame_count
+                    current_avg_frame[i].z += frame_landmarks_flow[i].z / current_frame_count
+                    current_avg_frame[i].visibility += frame_landmarks_flow[i].visibility / current_frame_count
+
+            frame_marker_dot_products = [
+                np.dot(
+                    previous_avg_frame[i].as_np_vector(),
+                    current_avg_frame[i].as_np_vector()
+                )
+                for i in range(self.MARKERS_PER_FRAME)]
+
+            if sum(frame_marker_dot_products) < self.dot_product_detection_threshold:
+                self._rep_count += 0.5
+                self._last_increment_frames_ago = 0
         else:
             self._last_increment_frames_ago += 1
