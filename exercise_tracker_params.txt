@@ -1,0 +1,5 @@
+different exercies
+distance form camera
+different lighting
+different background
+lower FPS test
