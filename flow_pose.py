@@ -2,7 +2,7 @@ from mediapipe.examples.python.upper_body_pose_tracker import UpperBodyPoseTrack
 from cv2 import VideoCapture
 from dataclasses import dataclass
 from statistics import mean
-from typing import Tuple, Generator, Any, Union, Iterable, Optional
+from typing import Tuple, Generator, Any, Union, Optional,  List
 from nptyping import NDArray
 import numpy as np
 
@@ -60,10 +60,28 @@ class PoseFlow:
     def from_capture(cls, capture: VideoCapture):
         pass
 
+    @staticmethod
+    def mean_landmark_group(landmarks_group: List[Tuple[Landmark]]) -> Optional[Tuple[Landmark]]:
+        if len(landmarks_group) == 0:
+            return None
+        landmark_count = len(landmarks_group[0])
+
+        return tuple(
+            Landmark(
+                mean(landmarks[i].x for landmarks in landmarks_group),
+                mean(landmarks[i].y for landmarks in landmarks_group),
+                mean(landmarks[i].z for landmarks in landmarks_group),
+                mean(landmarks[i].visibility for landmarks in landmarks_group)
+            )
+            for i in range(landmark_count)
+        )
+
+
     @classmethod
     def generate_flow_from_capture(
             cls,
             capture: VideoCapture,
+            smoothing: int = 3
     ) -> Generator[
         Tuple[NDArray, Optional[Landmark], Optional[Tuple[LandmarkFlow, ...]]]
         , Any, Any]:
@@ -72,8 +90,16 @@ class PoseFlow:
         landmarks_previous = None
         landmarks_current = None
 
+        landmarks_group_previous = []
+        landmarks_group_current = []
+
         while capture.isOpened():
-            landmarks_previous = landmarks_current
+            if landmarks_current is not None:
+                landmarks_previous = landmarks_current
+                landmarks_group_previous.insert(0, landmarks_previous)
+                if len(landmarks_group_previous) > smoothing:
+                    landmarks_group_previous.pop()
+
             status, frame = capture.read()
             if not status:
                 print(f"Capture status returned: {status}")
@@ -81,12 +107,20 @@ class PoseFlow:
             landmarks_current, _ = tracker.run(frame)
             if landmarks_current is not None:
                 landmarks_current = Landmark.from_mediapipe_landmarks(landmarks_current)
+                landmarks_group_current.insert(0, landmarks_current)
+                if len(landmarks_group_current) > smoothing:
+                    landmarks_group_current.pop()
 
             if landmarks_current is None or landmarks_previous is None:
                 yield frame, None, None
             else:
-                flow = cls._calculate_flow(landmarks_previous, landmarks_current)
-                yield frame, landmarks_current, flow
+                landmarks_current_mean = cls.mean_landmark_group(landmarks_group_current)
+                landmarks_previous_mean = cls.mean_landmark_group(landmarks_group_previous)
+                flow = cls._calculate_flow(
+                    landmarks_previous_mean,
+                    landmarks_current_mean
+                )
+                yield frame, landmarks_current_mean, flow
 
     @classmethod
     def _calculate_flow(

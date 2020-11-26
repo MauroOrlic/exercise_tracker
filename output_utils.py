@@ -96,7 +96,7 @@ class CustomVideoWriter(VideoWriter):
     @classmethod
     def from_video_capture(cls, capture: VideoCapture, file='untitled.mp4'):
         # For some reason capture FPS is double of what it should be
-        fps = capture.get(CAP_PROP_FPS) // 2
+        fps = capture.get(CAP_PROP_FPS)# // 2
         fourcc = VideoWriter_fourcc(*'mp4v')
         resolution = (
             int(capture.get(CAP_PROP_FRAME_WIDTH)),
