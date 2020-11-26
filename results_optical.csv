@@ -1,0 +1,16 @@
+phone,light,pup,far,9
+phone,light,squat,close,9
+webcam,dark,pup,close,0
+phone,dark,squat,close,0
+webcam,light,squat,close,9
+webcam,dark,squat,far,0
+webcam,light,pup,far,10
+webcam,light,pup,close,9
+phone,dark,pup,far,3
+phone,light,squat,far,9
+phone,dark,pup,close,3
+phone,light,pup,close,9
+phone,dark,squat,far,0
+webcam,dark,pup,far,0
+webcam,light,squat,far,9
+webcam,dark,squat,close,0

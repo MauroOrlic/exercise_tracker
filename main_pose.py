@@ -1,3 +1,5 @@
+import os
+import csv
 from cv2 import (
     VideoCapture,
     waitKey,
@@ -11,17 +13,13 @@ from output_utils import DisplayImageProcessor, CustomVideoWriter
 from rep_counter import RepCounterPoseFlow
 
 
-input_video_paths = [
-    #'videos/dario_squat_phone.mp4',
-    #'videos/dario_squat_webcam.mp4',
-    0
-]
-
-for input_video_path in input_video_paths:
-    if isinstance(input_video_path, str):
-        output_video_path = input_video_path[:-4] + '_optical' + input_video_path[-4:]
-    else:
-        output_video_path = 'webcam_output.mp4'
+for filename in os.listdir('videos/input'):
+    input_video_path = '/'.join(['videos/input', filename])
+    output_video_path = '/'.join(['videos/output', filename.split('.')[0] + '_pose.' + filename.split('.')[1]])
+    print('Processing to output: ', output_video_path)
+    if os.path.isfile(output_video_path):
+        print('Output file already exists, skipping!')
+        continue
 
     capture = VideoCapture(input_video_path)
     # Tinker with parameters depending on video quality and FPS
@@ -49,6 +47,15 @@ for input_video_path in input_video_paths:
         elif keypress == ord('r'):
             rep_counter.reset_rep_count()
 
+    with open('results_pose.csv', 'a') as csvfile:
+        writer = csv.writer(csvfile)
+        items = list(filename.split('.')[0].split('_'))
+        items.append(str(int(rep_counter.rep_count)))
+        print(items)
+        writer.writerow(items)
+
     capture.release()
     destroyAllWindows()
     output.release()
+
+print('Finished!')
